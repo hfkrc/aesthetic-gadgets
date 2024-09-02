@@ -1,0 +1,121 @@
+import requests
+import random
+from bs4 import BeautifulSoup
+import os
+import tweepy
+import time
+
+def download_random_image(pin_urls):
+    while pin_urls:  # URL listesi boşalıncaya kadar devam et
+        # Rastgele bir URL seç
+        random_url = random.choice(pin_urls).strip()
+        
+        try:
+            # Pin sayfasını indir
+            response = requests.get(random_url)
+            
+            # Eğer istek başarılı olursa (status code 200) devam et
+            if response.status_code == 200:
+                # HTML'i parse et
+                soup = BeautifulSoup(response.content, "html.parser")
+                
+                # Resim URL'sini bul (Pinterest sayfasında img etiketlerini arar)
+                image_tag = soup.find("img", {"src": True})
+                
+                if image_tag:
+                    image_url = image_tag["src"]
+                    
+                    # Resmi indir
+                    image_response = requests.get(image_url)
+                    
+                    if image_response.status_code == 200:
+                        # Dosya ismini sabit tutarak 'ag.jpg' olarak kaydet
+                        image_name = "ag.jpg"
+                        
+                        # İndirilen resmi kaydedelim
+                        with open(image_name, "wb") as img_file:
+                            img_file.write(image_response.content)
+                        
+                        print(f"Resim başarıyla indirildi: {image_name}")
+
+                        # Dosyadan URL'yi sil
+                        pin_urls.remove(random_url + "\n")
+                        with open("pin_urls.txt", "w") as file:
+                            file.writelines(pin_urls)
+
+                        print("URL listeden silindi.")
+                        return  # İndirilen resim başarıyla tamamlanınca işlevi bitir
+                    else:
+                        print("Resim indirilemedi, tekrar dene.")
+                else:
+                    print("Resim URL'si bulunamadı, tekrar dene.")
+            else:
+                print("Sayfa indirilemedi, tekrar dene.")
+        
+        except Exception as e:
+            print(f"Hata oluştu: {e}, tekrar denenecek.")
+
+def tweet_image(image_path):
+    if os.path.exists(image_path):
+        try:
+            # Medya dosyasını yükleme
+            print(f"{image_path} yükleniyor...")
+            media = api_v1.media_upload(image_path)
+            print(f"{image_path} başarıyla yüklendi.")
+
+            # Tweet metni
+            tweet_text = ""  # Tweet mesajı buraya eklendi.
+
+            # Tweet oluşturma
+            print("Tweet atılıyor...")
+            response = client.create_tweet(text=tweet_text, media_ids=[media.media_id])
+
+            print(f"Tweet başarıyla gönderildi! Tweet ID: {response.data['id']}")
+
+            # Tweet attıktan sonra resmi silelim
+            try:
+                os.remove(image_path)
+                print(f"{image_path} başarıyla silindi.")
+            except Exception as e:
+                print(f"Resim silinirken bir hata oluştu: {e}")
+
+        except Exception as e:
+            print(f"Tweet atılırken bir hata oluştu: {e}")
+    else:
+        print("ag.jpg dosyası bulunamadı.")
+
+# Twitter API kimlik bilgilerinizi ekleyin
+api_key = "wvhQ9iivQ2e1Z7UHgLrZAkmBZ"
+api_key_secret = "i5LzriSIZz9H30O99JSClkSIQ2nH3OOrEl4yqu00TmJjCX8JFA"
+access_token = "1222643502909181959-09zfw2v8dtEkXYcRHPzKQomdrQc1uT"
+access_token_secret = "grHxqc8IrHZOxRjEkN24EIH4rzHXYwu54zSKIEUDADISL"
+bearer_token = "AAAAAAAAAAAAAAAAAAAAANE%2BugEAAAAA4dEzwrPt7PBilVSRj7FFoPP9gEk%3DyHDjsbhqhAm42fq4DpL69v68kygQVZeW6b8TBHjM95gMSzfm3n"
+
+# API v1.1'e erişim için OAuth1 kimlik doğrulaması
+auth = tweepy.OAuthHandler(api_key, api_key_secret)
+auth.set_access_token(access_token, access_token_secret)
+api_v1 = tweepy.API(auth)
+
+# API v2 için Twitter Client oluşturma
+client = tweepy.Client(bearer_token=bearer_token,
+                       consumer_key=api_key,
+                       consumer_secret=api_key_secret,
+                       access_token=access_token,
+                       access_token_secret=access_token_secret)
+
+# Ana işlev
+if __name__ == "__main__":
+    while True:
+        # Dosyadan pin URL'lerini yükle
+        with open("pin_urls.txt", "r") as file:
+            pin_urls = file.readlines()
+
+        # İndirene kadar devam et
+        download_random_image(pin_urls)
+
+        # Resmi tweetle
+        tweet_image("ag.jpg")
+
+        # 3 saat bekle (3 saat = 10800 saniye)
+        print("Bir sonraki çalıştırma için 3 saat bekleniyor...")
+        time.sleep(10800)  # 3 saat = 10800 saniye
