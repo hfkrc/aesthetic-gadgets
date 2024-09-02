@@ -1,0 +1,63 @@
+import requests
+import random
+from bs4 import BeautifulSoup
+import os
+
+def download_random_image(pin_urls):
+    while pin_urls:  # URL listesi boşalıncaya kadar devam et
+        # Rastgele bir URL seç
+        random_url = random.choice(pin_urls).strip()
+        
+        try:
+            # Pin sayfasını indir
+            response = requests.get(random_url)
+            
+            # Eğer istek başarılı olursa (status code 200) devam et
+            if response.status_code == 200:
+                # HTML'i parse et
+                soup = BeautifulSoup(response.content, "html.parser")
+                
+                # Resim URL'sini bul (Pinterest sayfasında img etiketlerini arar)
+                image_tag = soup.find("img", {"src": True})
+                
+                if image_tag:
+                    image_url = image_tag["src"]
+                    
+                    # Resmi indir
+                    image_response = requests.get(image_url)
+                    
+                    if image_response.status_code == 200:
+                        # Dosya ismini sabit tutarak 'ag.jpg' olarak kaydet
+                        image_name = "ag.jpg"
+                        
+                        # İndirilen resmi kaydedelim
+                        with open(image_name, "wb") as img_file:
+                            img_file.write(image_response.content)
+                        
+                        print(f"Resim başarıyla indirildi: {image_name}")
+
+                        # Dosyadan URL'yi sil
+                        pin_urls.remove(random_url + "\n")
+                        with open("pin_urls.txt", "w") as file:
+                            file.writelines(pin_urls)
+
+                        print("URL listeden silindi.")
+                        break  # İndirilen resim başarıyla tamamlanınca döngüyü kır
+                    else:
+                        print("Resim indirilemedi, tekrar dene.")
+                else:
+                    print("Resim URL'si bulunamadı, tekrar dene.")
+            else:
+                print("Sayfa indirilemedi, tekrar dene.")
+        
+        except Exception as e:
+            print(f"Hata oluştu: {e}, tekrar denenecek.")
+        
+        # Eğer URL işe yaramazsa listeden silmeyeceğiz ve tekrar deneyeceğiz.
+
+# Dosyadan pin URL'lerini yükle
+with open("pin_urls.txt", "r") as file:
+    pin_urls = file.readlines()
+
+# İndirene kadar devam et
+download_random_image(pin_urls)
